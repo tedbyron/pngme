@@ -1,16 +1,16 @@
 use crate::Error;
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct ChunkType(u8, u8, u8, u8);
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct ChunkType([u8; 4]);
 
 impl TryFrom<[u8; 4]> for ChunkType {
     type Error = Error;
 
     fn try_from(value: [u8; 4]) -> Result<Self, Self::Error> {
         if !value.iter().all(u8::is_ascii_alphabetic) {
-            Err("Contains non-ASCII chars".into())
+            Err("Invalid chunk type: contains non-ASCII chars".into())
         } else {
-            Ok(Self(value[0], value[1], value[2], value[3]))
+            Ok(Self(value))
         }
     }
 }
@@ -20,7 +20,7 @@ impl std::str::FromStr for ChunkType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.len() != 4 {
-            Err("Invalid string length".into())
+            Err("Invalid chunk type length".into())
         } else {
             let s: [u8; 4] = s.as_bytes()[..4].try_into()?;
             Ok(Self::try_from(s)?)
@@ -30,43 +30,43 @@ impl std::str::FromStr for ChunkType {
 
 impl std::fmt::Display for ChunkType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(std::str::from_utf8(&self.bytes()).map_err(|_| std::fmt::Error)?)
+        f.write_str(std::str::from_utf8(self.as_bytes()).map_err(|_| std::fmt::Error)?)
     }
 }
 
 impl ChunkType {
-    pub const fn bytes(&self) -> [u8; 4] {
-        [self.0, self.1, self.2, self.3]
+    pub const fn as_bytes(&self) -> &[u8; 4] {
+        &self.0
     }
     pub const fn is_valid(&self) -> bool {
         self.is_reserved_bit_valid()
     }
     pub const fn is_critical(&self) -> bool {
-        self.0.is_ascii_uppercase()
+        self.0[0].is_ascii_uppercase()
     }
     pub const fn is_public(&self) -> bool {
-        self.1.is_ascii_uppercase()
+        self.0[1].is_ascii_uppercase()
     }
     pub const fn is_reserved_bit_valid(&self) -> bool {
-        self.2.is_ascii_uppercase()
+        self.0[2].is_ascii_uppercase()
     }
     pub const fn is_safe_to_copy(&self) -> bool {
-        self.3.is_ascii_lowercase()
+        self.0[3].is_ascii_lowercase()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use std::convert::TryFrom;
     use std::str::FromStr;
+
+    use super::*;
 
     #[test]
     pub fn test_chunk_type_from_bytes() {
-        let expected = [82, 117, 83, 116];
+        let expected = &[82, 117, 83, 116];
         let actual = ChunkType::try_from([82, 117, 83, 116]).unwrap();
 
-        assert_eq!(expected, actual.bytes());
+        assert_eq!(expected, actual.as_bytes());
     }
 
     #[test]
